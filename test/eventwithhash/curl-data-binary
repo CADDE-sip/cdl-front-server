@@ -1,0 +1,30 @@
+--------------------------3bc42ba6256f786f
+Content-Disposition: form-data; name="request"
+Content-Type: application/json
+
+{
+"Age":30,
+"Address":"Kanagawa",
+"cdldatamodelversion":"2.0",
+"cdleventtype":"rec"
+}
+
+--------------------------3bc42ba6256f786f
+Content-Disposition: form-data; name="upfile"; filename="a.json"
+Content-Type: application/json
+
+{
+  "street": "Kamikodanaka",
+  "city": "Nakahara, Kawasaki"
+}
+
+--------------------------3bc42ba6256f786f
+Content-Disposition: form-data; name="upfile"; filename="b.txt"
+Content-Type: text/plain
+
+xxxxxxxxxxxxxxxxxxxxx
+yyyyyyyyyyyyyyyyyyyyy
+zzzzzzzzzzzzzzzzzzzzz
+
+
+--------------------------3bc42ba6256f786f--

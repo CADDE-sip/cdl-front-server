@@ -1,0 +1,445 @@
+openapi: 3.0.0
+info:
+  description: |-
+    CDLv2 API
+  version: 2.1.2
+  title: Chain Data Lineage API
+  termsOfService: '/terms/'
+servers: 
+  - url: '{protocol}://cdl.io/v2'
+    variables:
+      protocol:
+        enum:
+        - http
+        - https
+        default: https
+
+paths:
+  '/lineage/{cdleventid}':
+    get:
+      tags:
+        - get lineage
+      summary: get CDL lineage
+      description: |+
+        Returns CDL lineage information starting from the given cdleventid
+      operationId: lineage
+      parameters:
+        - name: cdleventid
+          in: path
+          description: cdl event id of starting entity
+          required: true
+          schema:
+            type: string
+        - name: direction
+          in: query
+          description: >-
+            lineage direction from the starting point [BACKWARD(=default),
+            FORWARD, BOTH]
+          required: false
+          schema:
+            type: string
+            default: 'BACKWARD'
+        - name: depth
+          in: query
+          description: >-
+            lineage depth from the event specified by cdleventid:
+            0 indicates that you request the single event specified by cdleventid.
+            A positive integer indicates that you request all the events whose distance
+            from the specified record is not greater than the given depth.
+            -1 indicates that you request all the events which can be reached 
+            from the specified event.
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: -1
+      responses:
+        '200':
+          description: |+
+            successful operation. an array of events will be retunred. 
+            ```
+            {
+                "cdldatamodelversion": "2.0",
+                "cdleventid": "00f18f0d-a30b-4644-97e9-bbebb5f1dc9e",
+                "cdleventtype": "fist-event",
+                "cdlorganization": "org01",
+                "cdlpreviousevents": [],
+                "cdltagscope": "local",
+                "cdltimestamp": "2021-02-22T13:48:51.536Z"
+              },
+              {
+                "cdldatamodelversion": "2.0",
+                "cdleventid": "0e81fcf3-37d0-42df-8539-6233659d3e84",
+                "cdleventtype": "generated-a-file",
+                "cdlorganization": "org02",
+                "cdlpreviousevents": [ 
+                   "00f18f0d-a30b-4644-97e9-bbebb5f1dc9e"
+                ],
+                "cdltagscope": "local",
+                "cdltimestamp": "2021-02-22T13:50:05.832Z"
+              }
+            ]
+            ```
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CDLEventList'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Sever Error
+        '502':
+          description: Bad Gateway
+
+  '/searchevents':
+    post:
+      tags:
+        - search events
+      description: |+
+        
+        search events matching a search expression. the response is an array of events matching the search critieria.
+
+        
+        you must include `content-type: application/json` line in the request header.
+      operationId: searchevents
+      requestBody:
+        description: |+
+          search expression in couchdb syntax.  see https://docs.couchdb.org/en/stable/api/database/find.html#find-selectors
+
+          e.g., this json specifies cdl server to find events that have `cdltimestamp` between jul 19 and aug 19, 2020 and have at least one `datatag` that points to a file equals to or larger than 1MB:
+          ```
+          {
+            "selector": {
+              "cdltimestamp": {
+                "$gte": "2020-07-19T00:00:00+09:00",
+                "$lt": "2020-08-19T00:00:00+09:00"
+              },
+              "cdldatatags": {
+                "$elemMatch": {
+                  "cdlsize": {
+                    "$gte": 1048576
+                  }
+                }
+              }
+            }
+          }
+          ```
+        content:
+          application/json:
+            schema: 
+              type: object
+              properties:
+                selector:
+                  type: object
+              required:
+                - selector
+            example:
+              {
+                "selector": {
+                  "cdltimestamp": {
+                    "$gte": "2020-07-19T00:00:00+09:00",
+                    "$lt": "2020-08-19T00:00:00+09:00"
+                  },
+                  "cdldatatags": {
+                    "$elemMatch": {
+                      "cdlsize": {
+                        "$gte": 1048576
+                      }
+                    }
+                  }
+                }
+              }
+              
+      responses:
+        '200':
+          description: |+
+            Returns a list of maching events. the order in the list does not have any significance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CDLEventList'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Sever Error
+        '502':
+          description: Bad Gateway
+  '/eventwithhash':
+    post:
+      tags:
+        - register event
+      summary: upload files and register an event at the same time
+      description: |+
+        calculate hash values and register an event
+        - number of objects in datatags must be greater than or equal to the number of files included in this request. otherwise you will receive an error response
+        - the api will only calculate sha256 value of the files but will not store them. it is your responsability to store them
+        - the api will insert hash values to datatags[] elements in the same order as you include in the request. if there is cdlsha256hash attribute in the datatag object, it will be overwritten by the calculated hash value
+        - if your request is like this:
+        
+        ```
+        ------FormBoundaryFooBarBaz
+        {
+          "cdldatamodelversion": "2.0",
+          "cdleventtype:":"created files",
+          "cdldatatags": [
+            {
+              "whatever" : "foobar"
+            },
+            {
+              "cdluri" : "https://somewhere.else/file.txt"
+            },
+            {
+              "cdlsha256hash": "000000"
+            }
+          ]
+        }
+        ------FormBoundaryFooBarBaz
+        Content-Disposition: form-data; name="upfile"; filename="a.txt"
+        Content-Type: text/plain
+        
+        aaa
+        ------FormBoundaryFooBarBaz
+        Content-Disposition: form-data; name="upfile"; filename="b.txt"
+        Content-Type: text/plain
+        
+        bbb
+        ------FormBoundaryFooBarBaz
+        Content-Disposition: form-data; name="upfile"; filename="c.txt"
+        Content-Type: text/plain
+        
+        ccc
+        ------FormBoundaryFooBarBaz
+        
+        ```
+        a record will be created:
+        
+        
+        ```
+        {
+          "cdldatamodelversion": "2.0",
+          "cdleventid": "39d210ea-a9ac-4a0b-96bb-072c3630f5e0",
+          "cdleventtype:":"created files",
+          "cdldatatags": [
+            {
+              "whatever" : "foobar",
+              "cdlsha256hash": "17e682f060b5f8e47ea04c5c4855908b0a5ad612022260fe50e11ecb0cc0ab76"
+            },
+            {
+              "cdluri" : "https://somewhere.else/file.txt",
+              "cdlsha256hash": "3cf9a1a81f6bdeaf08a343c1e1c73e89cf44c06ac2427a892382cae825e7c9c1"
+            },
+            {
+              "cdlsha256hash": "5695d82a086b677962a0b0428ed1a213208285b7b40d7d3604876d36a710302a"
+            }
+          ]
+        }
+        
+        ```
+        and you will receive a response:
+        
+        ```
+        {
+           "cdleventid": "39d210ea-a9ac-4a0b-96bb-072c3630f5e0"
+        }
+        ```
+          more about the event object:
+
+          json object describing an event to be recorded. the only mandatory attributes are the cdldatamodelversion and the cdleventtype. it is recommended to define a set of event types that are known to all participants. a request with least information will look like this:
+          ```
+          {
+            "cdldatamodelversion": "2.0",
+            "cdleventtype": "some-common-event-name"
+          }
+          ```
+          
+          the cdleventid attribute, which identifies the event, will be assigned by the cdl system if you did not include it in the request.
+          
+          it is possible to include the cdleventid attribute in your request, if you wish. in this case, you must choose a globally unique string for the value. the cdl system will check if there are no events with same cdleventid.
+          ```
+          {
+            "cdldatamodelversion": "2.0",
+            "cdleventid": "an-id-no-one-else-would-ever-choose",
+            "cdleventtype": "some-common-event-name"
+          }
+          ```
+          you can make chain among cdlevents by filling cdlpreviousevents with registered cdleventids, as shown bellow. 
+          ```
+          {
+            "cdldatamodelversion": "2.0",
+            "cdleventtype": "generated-a-file",
+            "cdlpreviousevents": [ "00f18f0d-a30b-4644-97e9-bbebb5f1dc9e" ]
+          }
+          ```
+          you can include an array of cdldatatags. each cdldatatag represents a data stored in location specified by cdldatatag.cdluri.
+          ```
+          {
+            "cdldatamodelversion": "2.0",
+            "cdleventtype": "generated-a-file",
+            "cdldatatags": [
+              {
+                "cdluri": "http://example.com/path/ecaefa29-39af-459b-ab84-b3fa674584f6",
+                "cdlsha256hash": "b589b63bc6217ed0be9ed63b6a88984fc61e0732bbb5a7fb05a19c7b764b9c5b",
+                "cdlwebdavtimestamp": "2020-08-05T10:57:22+09:00",
+                "cdlsize": 10003
+              }
+            ],
+          }
+          ```
+        you must include `content-type: multipart/form-data` line in the request header.
+      operationId: eventwithhash
+      requestBody:
+        description: |+
+          multipart request
+
+          first entry must be an Event object.
+          ```
+          {
+            "cdldatamodelversion": "2.0",
+            "cdleventtype:":"created files",
+            "cdldatatags": [
+              {datatag1},
+              {datatag2},
+              {datatag3}
+            ]
+          }
+          ```
+          in the case above, there are three event objects. you need to pass the api three files:
+          ```
+          ------FormBoundaryFooBarBaz
+          Content-Disposition: form-data; name="upfile"; filename="a.txt"
+          Content-Type: text/plain
+          
+          aaa
+          ------FormBoundaryFooBarBaz
+          Content-Disposition: form-data; name="upfile"; filename="b.txt"
+          Content-Type: text/plain
+          
+          bbb
+          ------FormBoundaryFooBarBaz
+          Content-Disposition: form-data; name="upfile"; filename="c.txt"
+          Content-Type: text/plain
+          
+          ccc
+          ------FormBoundaryFooBarBaz
+          
+          ```
+          
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                request:
+                  $ref: '#/components/schemas/CDLEvent'
+                upfile:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '200':
+          description: |+
+            Successful operation.
+            Returns id of the record of each output file.
+            Each element corresponds to the file in the same position of given OutputInfo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CDLEventResponse'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Sever Error
+        '502':
+          description: Bad Gateway
+
+
+components:
+  schemas:
+    CDLDataTag:
+      type: object
+      properties:
+        cdluri:
+          type: string
+          example: 'http://example.com/pa/th/ecaefa29-39af-459b-ab84-b3fa674584f6'
+          description: |+
+            uri of the file.
+
+        cdlsha256hash:
+          type: string
+          example: 'b589b63bc6217ed0be9ed63b6a88984fc61e0732bbb5a7fb05a19c7b764b9c5b'
+        cdlwebdavtimestamp:
+          type: string
+          format: date-time
+          example: '2020-08-05T10:57:22+09:00'
+        cdlsize:
+          type: integer
+          format: int64
+          example: 3
+      additionalProperties: true
+    CDLEvent:
+      type: object
+      properties:
+        cdldatamodelversion:
+          type: string
+          description: version of this object. must be "2.0".
+        cdleventid:
+          type: string
+          description: 'eventid of each event is optional when user registeres an event. if an event object does not have an eventid, cdl creates a unique id for the event. if user supplies with an eventid, it has to be unique within the cdl network. cdl will check if it is indeed unique. event object returned from cdl api will always have an eventid.'
+          example: '194430e2-0f28-4bd4-8674-6ef6ec0198b0'
+        cdlorganization:
+          type: string
+          description: name of the organization who created this event. this is assigned by the cdl. if you set this value in your `POST /event` request, it will be overwritten by the cdl.
+        cdleventtype:
+          type: string
+          description: 'the nature of the event. it is recommended to define a set of eventtypes that are known to all organizations.'
+        cdltimestamp:
+          type: string
+          description: ''
+        cdlpreviousevents:
+          type: array
+          items:
+            type: string
+          description: 'list of eventids. if you are creating an cdlevent in order to call POST /event, the event you are about to create will be associated with the events listed in this array. if someone requests CDL using GET /lineage API, the API traverses the graph (in the directions specified in the API call) and returns events associated by the this cdlpreviousevents. if no events are listed in this array, that means there are no older events associated with this 
+ event (note that other events might include such event in their cdlpreviousevents).'
+        cdlnextevents:
+          type: array
+          items:
+            type: string
+          description: 'list of eventids. if you are creating an cdlevent in order to call POST /event, the event you are about to create will be associated with the events listed in this array. if someone requests CDL using GET /lineage API, the API traverses the graph (in the directions specified in the API call) and returns events associated by the this cdlnextevents. if no events are listed in this array, that means there are no older events associated with this 
+ event (note that other events might include such event in their cdlnextevents).'
+        cdldatatags:
+          type: array
+          items:
+            $ref: '#/components/schemas/CDLDataTag'
+      required:
+        - cdldatamodelversion
+        - cdleventtype
+      additionalProperties: true
+    CDLEventList:
+      type: array
+      items:
+        $ref: '#/components/schemas/CDLEvent'
+    CDLEventResponse:
+      type: object
+      properties:
+        cdleventid:
+          type: string

@@ -1,0 +1,47 @@
+#####################################################################################
+#   docker-compose.yml                                                              #
+#                                                                                   #
+#   COPYRIGHT FUJITSU LIMITED 2021                                                  #
+#####################################################################################
+version: "3.8"
+
+networks:
+  cdl_network:
+    external: true
+
+services:
+  cdlfrontserver:
+    image: ${mavenImg}
+    container_name: ${containerName}
+    hostname: ${hostName}
+    ports:
+     - ${RestPortHTTP}:8080
+     - ${RestPortHTTPS}:8443
+    volumes:
+      - ${dir_build}:${dir_build}
+      - ${dir_maven_repo_local}:${dir_maven_repo_local}
+      - $PWD/logs:/var/log/cdl
+    environment:
+      - CDL_EVENT_TYPE_DUPLICATE_CHECK=Create,Publish
+      - CDL_EVENT_TYPE_ADD_PREVIOUSEVENTS_CHECK=Create,Publish
+      - CDL_EVENT_TYPE_UPDATE_CHECK=Update
+      - CDL_EVENT_TYPE_PUBLISH_CHECK=Create,Publish
+    working_dir: ${dir_build}
+    command: mvn -Dmaven.repo.local=${dir_maven_repo_local} ${JAVA_OPTS} jetty:run
+    logging:
+      options:
+        max-size: '10m'
+        max-file: '14'
+    networks:
+      - cdl_network
+    # connection.yamlのURLにホスト名を記述した際にextra_hosts定義が必要
+    # extra_hosts:
+    #  - "epcp01.org01.cdl.com:10.130.100.58"
+    #  - "epcp02.org02.cdl.com:10.130.100.58"
+    #  - "epcp03.org03.cdl.com:10.130.100.58"
+    #  - "os01.common.cdl.com:10.130.100.58"
+    #  - "os02.common.cdl.com:10.130.100.58"
+    #  - "os03.common.cdl.com:10.130.100.58"
+    #  - "ca01.org01.cdl.com:10.130.100.58"
+    #  - "ca02.org02.cdl.com:10.130.100.58"
+    #  - "ca03.org03.cdl.com:10.130.100.58"
