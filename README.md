@@ -192,13 +192,19 @@ minifabricの実行に必要な設定ファイルを ${SIP_WORKDIR}/minifabric/s
    cp ${SIP_WORKDIR}/minifabric/vars/profiles/cdlchannel_connection_for_javasdk.yaml ${SIP_WORKDIR}/cdl-front-server/connection.yaml
    ```
 
+なお、外部IdPを使用する場合は、
+docker-compose.yml 内の以下の行をコメントアウトすること。
+```bash
+ - CDL_ENABLE_CERTIFICATION_AUTHENTICATION=False
+```
+
 3. 来歴管理モジュール起動
 
    ```bash
    make all
    ```
 
-4. 来歴管理モジュール確認 <BR>
+4. 来歴管理モジュール確認
 下記コンテナが起動していることを確認します。
    ```bash
    docker ps --format "{{.Names}} {{.Status}}" | grep cdlfrontserver
@@ -225,6 +231,7 @@ make stop
 cd ${SIP_WORKDIR}/minifabric
 ./minifab cleanup
 ```
+
 # LICENSE
 [MIT](./LICENSE.md)
 

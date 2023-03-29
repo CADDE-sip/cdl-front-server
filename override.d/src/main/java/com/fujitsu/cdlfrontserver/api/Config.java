@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 public class Config {
 
@@ -47,9 +48,36 @@ public class Config {
 
     private String _idTokenSecretKey = "7bf089bf9aa47b393e748b5f5502cc7e35b0a4826d93ce8456f7e7cc70df73ca";
     private long _idTokenExpireTime = 600000;
+    // IDトークン・JWSデジタル署名の発行者名
+    private String _tokenIssuer = "fujitsu";
+
+    // 管理者権限のロール
+    private String _adminRole = "user_admin";
 
     // 認証バイパスモード
     private Boolean _enableBypassUserAuthentication = Boolean.TRUE;
+
+    // 認証認可機能を使用するかのフラグ
+    private Boolean _enableCeatificationAuthentication = Boolean.TRUE;
+
+    // 認証認可機能で使用するclient_id、Secret
+    private String _clientId = "provenance";
+    private String _clientSecret = "iUQTo16IQysrWXvO1X2lGajOHYk21L46";
+
+    // 認証APIのURL
+    private String _portalUrl = "https://auth01.saas.data-linkage.jp/cadde/api/v4/token/introspect";
+
+    // 管理用セッションID取得で使用するユーザーID、パスワード
+    private String _specialUserId = "specialuser";
+    private String _specialPassword = "specialpass";
+
+    // 管理用セッションID取得成功時の戻り値
+    private String _specialSessionId = "F7C89BFA22C8320715D4413B57A25D3A";
+
+    // ユーザー登録時に使用する固定値
+    private String _registerUserOrg = "org1";
+    private String _registerUserRole = "role1";
+    private String _registerUserPassword = "password1";
 
     // cdleventtypeによるイベント重複チェック
     // 環境変数定義を省略した場合は、従来仕様通り、イベント登録を行う
@@ -67,6 +95,17 @@ public class Config {
         if ( env != null && !env.equals( "" ) ) {
             this._channelName = env;
         }
+        
+	// 認証機能で使用するclientId、Secret
+        env = System.getenv( "CLIENT_ID" );
+        if ( env != null && !env.equals( "" ) ) {
+            this._clientId = env;
+        }
+
+	env = System.getenv( "CLIENT_SECRET" );
+        if ( env != null && !env.equals( "" ) ) {
+            this._clientSecret = env;
+        }
 
         env = System.getenv( "CDL_CHAINCODE_NAME" );
         if ( env != null && !env.equals( "" ) ) {
@@ -83,6 +122,18 @@ public class Config {
             this._idTokenSecretKey = env;
         }
 
+        // トークン発行者名
+        env = System.getenv( "CDL_TOKEN_ISSUER" );
+        if ( env != null && !env.equals( "" ) ) {
+            this._tokenIssuer = env;
+        }
+
+        // 管理者権限のロール
+        env = System.getenv( "CDL_ADMIN_ROLE" );
+        if ( env != null && !env.equals( "" ) ) {
+            this._adminRole = env;
+        }
+
         env = System.getenv( "CDL_IDTOKEN_EXPIRETIME" );
         if ( env != null && !env.equals( "" ) ) {
             this._idTokenExpireTime = Long.parseLong( env );
@@ -92,6 +143,51 @@ public class Config {
         env = System.getenv( "CDL_ENABLE_BYPASS_USER_AUTHENTICATION" );
         if ( env != null && !env.equals( "" ) ) {
             this._enableBypassUserAuthentication = Boolean.valueOf( env );
+        }
+
+        // 認証認可機能使用の判定
+        env = System.getenv( "CDL_ENABLE_CERTIFICATION_AUTHENTICATION" );
+        if ( env != null && !env.equals( "" ) ) {
+            this._enableCeatificationAuthentication = Boolean.valueOf( env );
+        }
+
+        // 認証APIのURL
+        env = System.getenv( "PORTAL_URL" );
+        if ( env != null && !env.equals( "" ) ) {
+            this._portalUrl = env;
+        }
+
+        // 管理用セッションID取得で使用するユーザーID、パスワード
+        env = System.getenv( "SPECIAL_USER_ID" );
+        if ( env != null && !env.equals( "" ) ) {
+            this._specialUserId = env;
+        }
+
+        env = System.getenv( "SPECIAL_PASSWORD" );
+        if ( env != null && !env.equals( "" ) ) {
+            this._specialPassword = env;
+        }
+
+        // 管理用セッションID取得成功時の戻り値
+        env = System.getenv( "SPECIAL_SESSION_ID" );
+        if ( env != null && !env.equals( "" ) ) {
+            this._specialSessionId = env;
+        } 
+
+        // ユーザー登録時に使用する固定値
+        env = System.getenv( "REGISTER_USER_ORG" );
+        if ( env != null && !env.equals( "" ) ) {
+            this._registerUserOrg = env;
+        }
+
+        env = System.getenv( "REGISTER_USER_ROLE" );
+        if ( env != null && !env.equals( "" ) ) {
+            this._registerUserRole = env;
+        }
+
+        env = System.getenv( "REGISTER_USER_PASSWORD" );
+        if ( env != null && !env.equals( "" ) ) {
+            this._registerUserPassword = env;
         }
 
         env = System.getenv("CDL_EVENT_TYPE_DUPLICATE_CHECK");
@@ -167,6 +263,8 @@ public class Config {
 
         log.notice( "CDL Configurations :" );
         log.notice( "CHANNEL_NAME = " + this._channelName );
+        log.notice( "CLIENT_ID = " + this._clientId );
+        log.notice( "CLIENT_SECRET = " + this._clientSecret );
         log.notice( "CDL_CHAINCODE_NAME = " + this._cdlChainCodeName );
         log.notice( "CDL_HLF_NETWORKCONFIGPATH = " + this._cdlHlfNetworkConfigPath );
         log.notice( "CDL_HLF_ORGANIZATION = " + this._cdlHlfOrganization );
@@ -177,10 +275,24 @@ public class Config {
         log.notice( "CDL_HLF_CA_PEMFILE PATH = " + this._cdlHLFCAPemPath );
         log.notice( "CDL_HLF_CA_HOST = " + this._cdlHLFCAHost );
         log.notice( "CDL_HLF_CA_URL = " + this._cdlHLFCAURL );
+
+        log.notice( "CDL_ADMIN_ROLE = " + this._adminRole );
+
         log.notice( "CDL_IDTOKEN_SECERT_KEY = " + this._idTokenSecretKey );
         log.notice( "CDL_IDTOKEN_EXPIRETIME = " + this._idTokenExpireTime );
+        log.notice( "CDL_TOKEN_ISSUER = " + this._tokenIssuer );
 
         log.notice( "CDL_ENABLE_BYPASS_USER_AUTHENTICATION = " + this._enableBypassUserAuthentication );
+        log.notice( "CDL_ENABLE_CERTIFICATION_AUTHENTICATION = " + this._enableCeatificationAuthentication );
+
+        log.notice( "PORTAL_URL = " + this._portalUrl );
+        log.notice( "SPECIAL_USER_ID = " + this._specialUserId );
+        log.notice( "SPECIAL_PASSWORD = " + this._specialPassword );
+        log.notice( "SPECIAL_SESSION_ID = " + this._specialSessionId );
+
+        log.notice( "REGISTER_USER_ORG = " + this._registerUserOrg );
+        log.notice( "REGISTER_USER_ROLE = " + this._registerUserRole );
+        log.notice( "REGISTER_USER_PASSWORD = " + this._registerUserPassword );
 
         log.notice("CDL_EVENT_TYPE_DUPLICATE_CHECK = " + Arrays.toString(this._cdlEventTypeDuplicateCheck));
 
@@ -191,6 +303,14 @@ public class Config {
 
     public String channelName() {
         return _channelName;
+    }
+    
+    public String clientId() {
+        return _clientId;
+    }
+
+    public String clientSecret() {
+        return _clientSecret;
     }
 
     public String cdlChainCodeName() {
@@ -246,10 +366,80 @@ public class Config {
     }
 
     /**
+     * @return _tokenIssuer
+     */
+    public String tokenIssuer() {
+        return _tokenIssuer;
+    }
+
+    /**
+     * @return _adminRole
+     */
+    public String adminRole() {
+        return _adminRole;
+    }
+
+    /**
      * @return _enableBypassUserAuthentication
      */
     public Boolean enableBypassUserAuthentication() {
         return _enableBypassUserAuthentication;
+    }
+
+    /**
+     * @return _enableBypassUserAuthentication
+     */
+    public Boolean enableCeatificationAuthentication() {
+        return _enableCeatificationAuthentication;
+    }
+
+    /**
+     * @return _portalUrl
+     */
+    public String portalUrl() {
+        return _portalUrl;
+    }
+
+    /**
+     * @return _specialUserId
+     */
+    public String specialUserId() {
+        return _specialUserId;
+    }
+
+    /**
+     * @return _specialPassword
+     */
+    public String specialPassword() {
+        return _specialPassword;
+    }
+
+    /**
+     * @return _specialSessionId
+     */
+    public String specialSessionId() {
+        return _specialSessionId;
+    }
+
+    /**
+     * @return _registerUserOrg
+     */
+    public String registerUserOrg() {
+        return _registerUserOrg;
+    }
+
+    /**
+     * @return _registerUserRole
+     */
+    public String registerUserRole() {
+        return _registerUserRole;
+    }
+
+    /**
+     * @return _registerUserPassword
+     */
+    public String registerUserPassword() {
+        return _registerUserPassword;
     }
 
     /**
@@ -280,3 +470,4 @@ public class Config {
         return _cdlEventTypePublishCheck;
     }
 }
+

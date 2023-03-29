@@ -26,6 +26,7 @@ services:
       - CDL_EVENT_TYPE_ADD_PREVIOUSEVENTS_CHECK=Create,Publish
       - CDL_EVENT_TYPE_UPDATE_CHECK=Update
       - CDL_EVENT_TYPE_PUBLISH_CHECK=Create,Publish
+      - CDL_ENABLE_CERTIFICATION_AUTHENTICATION=False
     working_dir: ${dir_build}
     command: mvn -Dmaven.repo.local=${dir_maven_repo_local} ${JAVA_OPTS} jetty:run
     logging:

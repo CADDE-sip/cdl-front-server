@@ -67,6 +67,10 @@ public class UserContext implements User, Serializable {
         this.hashSecret = hashSecret;
     }
 
+    public void setRoles(Set<String> roles) {
+        this.roles = roles;
+    }
+
     /**
      * @return 組織名
      */

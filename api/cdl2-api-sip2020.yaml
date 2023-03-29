@@ -24,6 +24,16 @@ paths:
         Returns CDL lineage information starting from the given cdleventid
       operationId: lineage
       parameters:
+        - name: Authorization
+          in: header
+          description: User-entered Authorization
+          schema:
+            type: string
+        - name: ID_Token
+          in: header
+          description: User-entered ID token
+          schema:
+            type: string
         - name: cdleventid
           in: path
           description: cdl event id of starting entity
@@ -108,6 +118,17 @@ paths:
         
         you must include `content-type: application/json` line in the request header.
       operationId: searchevents
+      parameters:
+        - name: Authorization
+          in: header
+          description: User-entered Authorization
+          schema:
+            type: string  
+        - name: ID_Token
+          in: header
+          description: User-entered ID token
+          schema:
+            type: string
       requestBody:
         description: |+
           search expression in couchdb syntax.  see https://docs.couchdb.org/en/stable/api/database/find.html#find-selectors
@@ -164,6 +185,86 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CDLEventList'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Sever Error
+        '502':
+          description: Bad Gateway
+  '/adduser':
+    post:
+      tags:
+        - user management
+      summary: add a new user
+      description: |+
+        add user
+      operationId: adduser
+      parameters:
+        - name: ID_Token
+          in: header
+          description: User-entered ID token
+          schema:
+            type: string
+        - name: X-CDL-SessionId
+          in: header
+          description: Session ID of authenticated user
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CDLUserInfo'
+      responses:
+        '200':
+          description: |+
+            Successful operation.
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Sever Error
+        '502':
+          description: Bad Gateway
+  '/enroll':
+    post:
+      tags:
+        - user management
+      summary: authenticate the user
+      description: |+
+        enroll special user
+      operationId: enroll
+      parameters:
+        - name: ID_Token
+          in: header
+          description: User-entered ID token
+          schema:
+            type: string
+        - name: userid
+          in: header
+          description: Authenticated user id
+          schema:
+            type: string
+        - name: X-CDL-Auth
+          in: header
+          description: Authenticated user password
+          schema:
+            type: string
+      responses:
+        '200':
+          description: |+
+            Successful operation.
         '400':
           description: Bad Request
         '401':
@@ -299,6 +400,17 @@ paths:
           ```
         you must include `content-type: multipart/form-data` line in the request header.
       operationId: eventwithhash
+      parameters:
+        - name: Authorization
+          in: header
+          description: User-entered Authorization
+          schema:
+            type: string
+        - name: ID_Token
+          in: header
+          description: User-entered ID token
+          schema:
+            type: string
       requestBody:
         description: |+
           multipart request
@@ -438,6 +550,23 @@ components:
       type: array
       items:
         $ref: '#/components/schemas/CDLEvent'
+    CDLUserInfo:
+      type: object
+      properties:
+        cdluserid:
+          type: string
+        cdlorganization:
+          type: string
+        cdlrole:
+          type: string
+        cdlpassword:
+          type: string
+      required:
+        - cdluserid
+        - cdlorganization
+        - cdlrole
+        - cdlpassword
+      additionalProperties: false
     CDLEventResponse:
       type: object
       properties:

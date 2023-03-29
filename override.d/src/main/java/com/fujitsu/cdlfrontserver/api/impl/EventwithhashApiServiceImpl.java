@@ -37,6 +37,9 @@ import com.fujitsu.cdlfrontserver.model.CDLEvent;
 import com.fujitsu.cdlfrontserver.model.CDLEventResponse;
 import com.fujitsu.cdlfrontserver.usermanager.HLFGatewayManager;
 
+import com.fujitsu.cdlfrontserver.api.GetAuthenticationToken;
+import java.io.IOException;
+
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaJerseyServerCodegen", date = "2020-12-08T10:35:27.256+09:00[Asia/Tokyo]")
 public class EventwithhashApiServiceImpl extends EventwithhashApiService {
 
@@ -56,8 +59,51 @@ public class EventwithhashApiServiceImpl extends EventwithhashApiService {
     // バージョン指定
     private static final String DATAMODEL_VERSION = "2.0";
 
-    public Response eventwithhash(CDLEvent request,
+    public Response eventwithhash(String Authorization, String ID_Token, CDLEvent request,
             List<FormDataBodyPart> upfileBodypart, SecurityContext securityContext) throws NotFoundException {
+
+        // 認証認可機能を行うかどうかをコンフィグファイルから判定
+        if (Config.get().enableCeatificationAuthentication()) {
+            try {
+                Integer responseCode = null;
+
+                // AuthorizationとID_Tokenがnullの場合はエラーを返す
+                if (Authorization == null) {
+                    if (ID_Token == null) {
+                        return Response.status(Response.Status.BAD_REQUEST).entity(new ApiResponseMessage(ApiResponseMessage.ERROR,
+                                 Response.Status.BAD_REQUEST.getReasonPhrase() + " : ID_Token is null")).build();
+                    }
+                    // Authorizationが無い場合はID_Tokenで認証を行う
+                    responseCode = GetAuthenticationToken.execute(Config.get().clientId(), Config.get().clientSecret(), ID_Token);
+                } else {
+                    // clientId、clientSecret、ヘッダ情報のAuthorizationを認証APIに送る
+                    responseCode = GetAuthenticationToken.execute(Config.get().clientId(), Config.get().clientSecret(), Authorization);
+                }
+                // トークン検証APIが正常終了していなかった場合、メッセージを出力し終了する
+                if (responseCode != 200) {
+                    switch(responseCode){
+                        case 403:
+                            return Response.status(Response.Status.BAD_REQUEST).entity(new ApiResponseMessage(ApiResponseMessage.ERROR,
+                                 Response.Status.BAD_REQUEST.getReasonPhrase() + " : ID_Token is different")).build();
+
+                        case 422:
+                            return Response.status(Response.Status.BAD_REQUEST).entity(new ApiResponseMessage(ApiResponseMessage.ERROR,
+                                 Response.Status.BAD_REQUEST.getReasonPhrase() + " : Vallidate Error")).build();
+
+                        case  500:
+                            return Response.status(Response.Status.BAD_REQUEST).entity(new ApiResponseMessage(ApiResponseMessage.ERROR,
+                                 Response.Status.BAD_REQUEST.getReasonPhrase() + " : Internal Server Error")).build();
+
+                        default:
+                            throw new IOException();
+                    }
+                }
+            } catch(IOException i) {
+                log.error("An error has occurred. " + i.getMessage());
+                return Response.status(Response.Status.BAD_REQUEST).entity(new ApiResponseMessage(ApiResponseMessage.ERROR,
+                             Response.Status.BAD_REQUEST.getReasonPhrase() + " : connect error")).build();
+            }
+        }
 
         System.out.println(log.buildLogMsg(LogLevel.DEBUG,
                 "start, CDLEvent = " + (request == null ? "null" : request.toString())));
